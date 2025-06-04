@@ -1,1 +1,2 @@
 # course-management-backend
+FREQUENTLY UPDATE requirements.txt, AS THERE MIGHT BE PACKAGES THAT YOU NEED TO RUN THIS API

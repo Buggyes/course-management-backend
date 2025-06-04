@@ -1,3 +1,7 @@
 #unwanted files
 example.py
 cmw-backend/
+venv/
+.venv/
+env/
+__pycache__/

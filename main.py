@@ -1,3 +1,4 @@
+from typing import Annotated
 from fastapi import Depends, FastAPI, HTTPException, Query
 from sqlmodel import Session, create_engine, select
 from models import *
