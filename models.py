@@ -1,3 +1,5 @@
+from pydantic import BaseModel
+from typing import List, Optional
 from sqlmodel import Field, SQLModel, LargeBinary, Column
 
 class AreaAction(SQLModel, table=True):
@@ -27,3 +29,39 @@ class InstructorArea(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     instructor_id: int | None = Field(default=None, foreign_key="instructor.id")
     area_id: int | None = Field(default=None, foreign_key="areaaction.id")
+
+
+# DTOs
+
+class AreaActionDTO(BaseModel):
+    name: str
+
+class UserDTO(BaseModel):
+    login: str
+    password: str
+
+class CourseDTO(BaseModel):
+    name: str
+    description: str
+    banner: bytes
+    instructor_id: int
+
+class CourseUpdateDTO(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    banner: Optional[str] = None
+    instructor_id: Optional[int] = None
+
+class InstructorDTO(BaseModel):
+    name: str
+    biography: Optional[str]
+    pfp: bytes
+    banner: bytes
+    courses: List[CourseDTO] = []
+
+class InstructorUpdateDTO(BaseModel):
+    name: Optional[str] = None
+    biography: Optional[str] = None
+    pfp: Optional[bytes] = None
+    banner: Optional[bytes] = None
+    courses: Optional[List[CourseDTO]] = None
