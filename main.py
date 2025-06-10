@@ -4,6 +4,7 @@ from sqlmodel import Session, create_engine, select
 from sqlalchemy import and_
 from models import *
 from security import *
+from fastapi.middleware.cors import CORSMiddleware
 
 database_url = "postgresql://localhost/course_management_db"
 
@@ -19,6 +20,14 @@ def get_session():
 SessionDep = Annotated[Session, Depends(get_session)]
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.on_event("startup")
 def on_startup():
