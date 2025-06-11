@@ -1,5 +1,8 @@
+import json
+import requests
 from typing import Annotated
-from fastapi import Depends, FastAPI, HTTPException, Query, Response
+from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi.responses import JSONResponse
 from sqlmodel import Session, create_engine, select
 from sqlalchemy import and_
 from models import *
@@ -58,10 +61,10 @@ def login_user(user: UserDTO, session: Session = Depends(get_session)):
     if not result:
         raise HTTPException(status_code=400, detail="Incorrect username")
 
-    if not bcrypt.checkpw(user.password.encode(), result.password.encode()):
+    if not bcrypt.checkpw(user.password.encode('utf-8'), result.password.encode('utf-8')):
         raise HTTPException(status_code=400, detail="Incorrect password")
-
-    return Response(status_code=200)
+    
+    return JSONResponse(status_code=200, content="logged in")
 
 @app.post("/area/")
 def create_area(area: AreaActionDTO, session: Session = Depends(get_session)):
@@ -73,7 +76,7 @@ def create_area(area: AreaActionDTO, session: Session = Depends(get_session)):
         session.add(converted_area)
         session.commit()
         session.refresh(converted_area)
-        return Response(status_code=200)
+        return JSONResponse(status_code=200)
 
     raise HTTPException(status_code=400, detail="Area already exists")
 
@@ -98,7 +101,7 @@ def create_instructor(instructor: InstructorDTO, session: Session = Depends(get_
         session.add(converted_instructor)
         session.commit()
         session.refresh(converted_instructor)
-        return Response(status_code=200)
+        return JSONResponse(status_code=200, content="instructor created")
 
     raise HTTPException(status_code=400, detail="Instructor already exists")
 
@@ -118,7 +121,7 @@ def update_instructor(instructor_id: int, instructor: InstructorUpdateDTO, sessi
     session.add(db_instructor)
     session.commit()
     session.refresh(db_instructor)
-    return db_instructor
+    return JSONResponse(status_code=200, content="instructor updated")
 
 @app.get("/instructors/")
 def get_instructors(session: SessionDep,
@@ -141,7 +144,7 @@ def create_course(course: CourseDTO, session: Session = Depends(get_session)):
         session.add(converted_course)
         session.commit()
         session.refresh(converted_course)
-        return Response(status_code=200)
+        return JSONResponse(status_code=200)
 
     raise HTTPException(status_code=400, detail="Course already exists")
 
@@ -178,4 +181,4 @@ def delete_course(course_id: int, session: SessionDep):
         raise HTTPException(status_code=404, detail="Course not found")
     session.delete(course)
     session.commit()
-    return Response(status_code=200)
+    return JSONResponse(status_code=200)
