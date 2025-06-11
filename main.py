@@ -76,7 +76,7 @@ def create_area(area: AreaActionDTO, session: Session = Depends(get_session)):
         session.add(converted_area)
         session.commit()
         session.refresh(converted_area)
-        return JSONResponse(status_code=200)
+        return JSONResponse(status_code=200, content="area created")
 
     raise HTTPException(status_code=400, detail="Area already exists")
 
