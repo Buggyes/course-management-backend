@@ -49,7 +49,7 @@ def create_user(user: UserDTO, session: Session = Depends(get_session)):
         session.add(converted_user)
         session.commit()
         session.refresh(converted_user)
-        return Response(status_code=200)
+        return JSONResponse(status_code=200, content="created")
 
     raise HTTPException(status_code=400, detail="User already exists")
 
