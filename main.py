@@ -156,6 +156,14 @@ def get_courses(session: SessionDep,
     courses = session.exec(select(Course).offset(offset).limit(limit)).all()
     return courses
 
+@app.get("/courses/{area_id}")
+def get_courses(area_id: int, session: SessionDep,
+    offset: int = 0,
+    limit: Annotated[int, Query(le=100)] = 100,
+) -> list[Course]:
+    courses = session.exec(select(Course).offset(offset).limit(limit).where(Course.area_id == area_id)).all()
+    return courses
+
 @app.patch("/course/", response_model=Course)
 def update_course(course_id: int, course: CourseUpdateDTO, session: Session = Depends(get_session)):
     expression = select(Course).where(Course.id == course_id)

@@ -9,26 +9,27 @@ class AreaAction(SQLModel, table=True):
 class User(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     login: str = Field(default=None, index=True)
-    password: str = Field(default=None, index=True)
+    password: str = Field(default=None)
 
 class Instructor(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    name: str
-    biography: str | None = None
+    name: str = Field(default=str, index=True)
+    biography: str = Field(default=None)
     pfp: bytes = Field(sa_column=Column(LargeBinary))
     banner: bytes = Field(sa_column=Column(LargeBinary))
 
 class Course(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    name: str = Field(default=None)
+    name: str = Field(default=str, index=True)
     description: str = Field(default=None)
     banner: bytes = Field(sa_column=Column(LargeBinary))
-    instructor_id: int | None = Field(default=None, foreign_key="instructor.id")
+    instructor_id: int = Field(foreign_key="instructor.id")
+    area_id: int = Field(foreign_key="areaaction.id")
 
 class InstructorArea(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    instructor_id: int | None = Field(default=None, foreign_key="instructor.id")
-    area_id: int | None = Field(default=None, foreign_key="areaaction.id")
+    instructor_id: int = Field(foreign_key="instructor.id")
+    area_id: int = Field(foreign_key="areaaction.id")
 
 
 # DTOs
@@ -51,13 +52,14 @@ class CourseUpdateDTO(BaseModel):
     description: Optional[str] = None
     banner: Optional[str] = None
     instructor_id: Optional[int] = None
+    area_id: Optional[int] = None
 
 class InstructorDTO(BaseModel):
     name: str
     biography: Optional[str]
     pfp: bytes
     banner: bytes
-    courses: List[CourseDTO] = []
+    areas_id: List[int] = []
 
 class InstructorUpdateDTO(BaseModel):
     name: Optional[str] = None
@@ -65,3 +67,4 @@ class InstructorUpdateDTO(BaseModel):
     pfp: Optional[bytes] = None
     banner: Optional[bytes] = None
     courses: Optional[List[CourseDTO]] = None
+    areas_id: Optional[List[int]] = None
