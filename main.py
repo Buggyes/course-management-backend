@@ -50,7 +50,7 @@ def create_user(user: UserDTO, session: Session = Depends(get_session)):
         session.add(converted_user)
         session.commit()
         session.refresh(converted_user)
-        return JSONResponse(status_code=200, content={"created"})
+        return JSONResponse(status_code=200, content={"message": "created"})
 
     raise HTTPException(status_code=400, detail="User already exists")
 
@@ -65,7 +65,7 @@ def login_user(user: UserDTO, session: Session = Depends(get_session)):
     if not bcrypt.checkpw(user.password.encode('utf-8'), result.password.encode('utf-8')):
         raise HTTPException(status_code=400, detail="Incorrect password")
     
-    return JSONResponse(status_code=200, content={"logged in"})
+    return JSONResponse(status_code=200, content={"message": "logged in"})
 
 @app.post("/area/")
 def create_area(area: AreaActionDTO, session: Session = Depends(get_session)):
@@ -77,7 +77,7 @@ def create_area(area: AreaActionDTO, session: Session = Depends(get_session)):
         session.add(converted_area)
         session.commit()
         session.refresh(converted_area)
-        return JSONResponse(status_code=200, content="area created")
+        return JSONResponse(status_code=200, content={ "message": "area created" })
 
     raise HTTPException(status_code=400, detail="Area already exists")
 
@@ -140,7 +140,7 @@ def update_instructor(instructor_id: int, instructor: InstructorUpdateDTO, sessi
     session.add(db_instructor)
     session.commit()
     session.refresh(db_instructor)
-    return JSONResponse(status_code=200, content={"instructor updated"})
+    return JSONResponse(status_code=200, content={"message": "instructor updated"})
 
 @app.get("/instructors/")
 def get_instructors(
@@ -176,16 +176,43 @@ def get_instructors(
 
     return JSONResponse(content=result)
 
+@app.delete("/instructor/{instructor_id}")
+def delete_instructor(instructor_id: int, session: SessionDep):
+    instructor = session.get(Instructor, instructor_id)
+    if not instructor:
+        raise HTTPException(status_code=404, detail="Instructor not found")
+    courses = session.exec(
+        select(Course).where(Course.instructor_id == instructor.id)
+    ).all()
+    if courses:
+        raise HTTPException(status_code=400, detail="Instructor is attached to courses")
+    instructorArea = session.exec(select(InstructorArea).where(InstructorArea.instructor_id == instructor_id)).all()
+    for a in instructorArea:
+        session.delete(a)
+    session.commit()
+    session.delete(instructor)
+    session.commit()
+    return JSONResponse(status_code=200, content={"message": "Instructor deleted"})
+
 @app.post("/course/")
-def create_course(course: CourseDTO, session: Session = Depends(get_session)):
-    expression = select(Course).where(Course.name == course.name)
+def create_course(
+    name: str = Form(...),
+    description: str = Form(...),
+    instructor_id: int = Form(...),
+    area_id: int = Form(...),
+    banner: UploadFile = File(...),
+    session: Session = Depends(get_session)):
+    
+    expression = select(Course).where(Course.name == name)
     result = session.exec(expression).first()
 
     if not result:
-        converted_course = Course(name=course.name,
-        description=course.description,
-        banner=course.banner,
-        instructor_id=course.instructor_id)
+        converted_course = Course(name=name,
+        description=description,
+        banner=banner.file.read(),
+        instructor_id=instructor_id,
+        area_id=area_id
+        )
         session.add(converted_course)
         session.commit()
         session.refresh(converted_course)
@@ -196,18 +223,48 @@ def create_course(course: CourseDTO, session: Session = Depends(get_session)):
 @app.get("/courses/")
 def get_courses(session: SessionDep,
     offset: int = 0,
-    limit: Annotated[int, Query(le=100)] = 100,
-) -> list[Course]:
-    courses = session.exec(select(Course).offset(offset).limit(limit)).all()
-    return courses
+    limit: Annotated[int, Query(le=100)] = 100
+):
+    courses = session.exec(
+        select(Course).offset(offset).limit(limit)
+    ).all()
+
+    result = []
+
+    for course in courses:
+        result.append({
+            "id": course.id,
+            "name": course.name,
+            "description": course.description,
+            "banner": f"data:image/png;base64,{base64.b64encode(course.banner).decode()}" if course.banner else None,
+            "instructor": course.instructor_id,
+            "area": course.area_id,
+        })
+
+    return JSONResponse(content=result)
 
 @app.get("/courses/{area_id}")
 def get_courses(area_id: int, session: SessionDep,
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100,
 ) -> list[Course]:
-    courses = session.exec(select(Course).offset(offset).limit(limit).where(Course.area_id == area_id)).all()
-    return courses
+    courses = session.exec(
+        select(Course).offset(offset).limit(limit).where(Course.area_id == area_id)
+    ).all()
+
+    result = []
+
+    for course in courses:
+        result.append({
+            "id": course.id,
+            "name": course.name,
+            "description": course.description,
+            "banner": f"data:image/png;base64,{base64.b64encode(course.banner).decode()}" if course.banner else None,
+            "instructor": course.instructor_id,
+            "area": course.area_id,
+        })
+
+    return JSONResponse(content=result)
 
 @app.patch("/course/", response_model=Course)
 def update_course(course_id: int, course: CourseUpdateDTO, session: Session = Depends(get_session)):
@@ -234,4 +291,4 @@ def delete_course(course_id: int, session: SessionDep):
         raise HTTPException(status_code=404, detail="Course not found")
     session.delete(course)
     session.commit()
-    return JSONResponse(status_code=200, content={"Course deleted"})
+    return JSONResponse(status_code=200, content={"message": "Course deleted"})

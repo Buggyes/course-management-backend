@@ -46,6 +46,7 @@ class CourseDTO(BaseModel):
     description: str
     banner: bytes
     instructor_id: int
+    area_id: int
 
 class CourseUpdateDTO(BaseModel):
     name: Optional[str] = None
