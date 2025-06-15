@@ -1,7 +1,8 @@
 import json
 import requests
+import base64
 from typing import Annotated
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Form, File, UploadFile
 from fastapi.responses import JSONResponse
 from sqlmodel import Session, create_engine, select
 from sqlalchemy import and_
@@ -49,7 +50,7 @@ def create_user(user: UserDTO, session: Session = Depends(get_session)):
         session.add(converted_user)
         session.commit()
         session.refresh(converted_user)
-        return JSONResponse(status_code=200, content="created")
+        return JSONResponse(status_code=200, content={"created"})
 
     raise HTTPException(status_code=400, detail="User already exists")
 
@@ -64,7 +65,7 @@ def login_user(user: UserDTO, session: Session = Depends(get_session)):
     if not bcrypt.checkpw(user.password.encode('utf-8'), result.password.encode('utf-8')):
         raise HTTPException(status_code=400, detail="Incorrect password")
     
-    return JSONResponse(status_code=200, content="logged in")
+    return JSONResponse(status_code=200, content={"logged in"})
 
 @app.post("/area/")
 def create_area(area: AreaActionDTO, session: Session = Depends(get_session)):
@@ -89,19 +90,37 @@ def get_areas(session: SessionDep,
     return areas
 
 @app.post("/instructor/")
-def create_instructor(instructor: InstructorDTO, session: Session = Depends(get_session)):
-    expression = select(Instructor).where(Instructor.name == instructor.name)
+def create_instructor(
+    name: str = Form(...),
+    biography: str = Form(...),
+    areas_id: list[int] = Form(...),
+    pfp: UploadFile = File(...),
+    banner: UploadFile = File(...),
+    session: Session = Depends(get_session)
+):
+    pfp_data = pfp.file.read()
+    banner_data = banner.file.read()
+    expression = select(Instructor).where(Instructor.name == name)
     result = session.exec(expression).first()
 
     if not result:
-        converted_instructor = Instructor(name=instructor.name,
-        biography=instructor.biography,
-        pfp=instructor.pfp,
-        banner=instructor.banner)
+        converted_instructor = Instructor(
+            name=name,
+            biography=biography,
+            pfp=pfp_data,
+            banner=banner_data
+        )
+
         session.add(converted_instructor)
         session.commit()
         session.refresh(converted_instructor)
-        return JSONResponse(status_code=200, content="instructor created")
+
+        for a in areas_id:
+            instructor_area = InstructorArea(instructor_id=converted_instructor.id, area_id=a)
+            session.add(instructor_area)
+
+        session.commit()
+        return JSONResponse(status_code=200, content={"message": "Instructor created"})
 
     raise HTTPException(status_code=400, detail="Instructor already exists")
 
@@ -121,15 +140,41 @@ def update_instructor(instructor_id: int, instructor: InstructorUpdateDTO, sessi
     session.add(db_instructor)
     session.commit()
     session.refresh(db_instructor)
-    return JSONResponse(status_code=200, content="instructor updated")
+    return JSONResponse(status_code=200, content={"instructor updated"})
 
 @app.get("/instructors/")
-def get_instructors(session: SessionDep,
+def get_instructors(
+    session: SessionDep,
     offset: int = 0,
     limit: Annotated[int, Query(le=100)] = 100,
-) -> list[Instructor]:
-    instructors = session.exec(select(Instructor).offset(offset).limit(limit)).all()
-    return instructors
+):
+    instructors = session.exec(
+        select(Instructor).offset(offset).limit(limit)
+    ).all()
+
+    result = []
+
+    for instructor in instructors:
+        instructor_areas = session.exec(
+            select(InstructorArea).where(InstructorArea.instructor_id == instructor.id)
+        ).all()
+
+        area_ids = [ia.area_id for ia in instructor_areas]
+
+        areas = session.exec(
+            select(AreaAction).where(AreaAction.id.in_(area_ids))
+        ).all()
+
+        result.append({
+            "id": instructor.id,
+            "name": instructor.name,
+            "biography": instructor.biography,
+            "pfp": f"data:image/png;base64,{base64.b64encode(instructor.pfp).decode()}" if instructor.pfp else None,
+            "banner": f"data:image/png;base64,{base64.b64encode(instructor.banner).decode()}" if instructor.banner else None,
+            "areas": [{"id": area.id, "name": area.name} for area in areas]
+        })
+
+    return JSONResponse(content=result)
 
 @app.post("/course/")
 def create_course(course: CourseDTO, session: Session = Depends(get_session)):
@@ -189,4 +234,4 @@ def delete_course(course_id: int, session: SessionDep):
         raise HTTPException(status_code=404, detail="Course not found")
     session.delete(course)
     session.commit()
-    return JSONResponse(status_code=200)
+    return JSONResponse(status_code=200, content={"Course deleted"})
