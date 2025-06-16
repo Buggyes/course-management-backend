@@ -203,8 +203,7 @@ def create_course(
     banner: UploadFile = File(...),
     session: Session = Depends(get_session)):
     
-    expression = select(Course).where(Course.name == name)
-    result = session.exec(expression).first()
+    result = session.exec(select(Course).where(Course.name == name)).first()
 
     if not result:
         converted_course = Course(name=name,
@@ -216,7 +215,7 @@ def create_course(
         session.add(converted_course)
         session.commit()
         session.refresh(converted_course)
-        return JSONResponse(status_code=200)
+        return JSONResponse(status_code=200, content={"message":"Course added"})
 
     raise HTTPException(status_code=400, detail="Course already exists")
 
